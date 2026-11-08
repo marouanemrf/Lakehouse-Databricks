@@ -90,6 +90,18 @@ def upload_to_volume(source: str, filename: str, overwrite: bool = False) -> str
     Kat-rjje3 chemin dyal fichier f Volume.
     """
     target = f"{RAW_VOLUME}/{filename}"
+
+    if in_databricks():  # f Databricks, Volume mounté k dossier local (/Volumes/...)
+        import shutil
+        if os.path.exists(target) and not overwrite:
+            print(f"Deja kayn: {target}")
+        elif source.startswith("http"):
+            print(f"Telechargement: {source}")
+            urllib.request.urlretrieve(source, target)
+        else:
+            shutil.copy(source, target)
+        return target
+
     w = get_workspace_client()
 
     if not overwrite:

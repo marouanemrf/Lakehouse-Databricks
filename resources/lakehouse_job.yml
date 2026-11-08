@@ -1,0 +1,46 @@
+# Phase 9 — Databricks Workflow (Job) du pipeline Lakehouse
+# Deploiement : databricks bundle deploy -t dev
+# Execution   : databricks bundle run lakehouse_pipeline -t dev
+
+resources:
+  jobs:
+    lakehouse_pipeline:
+      name: lakehouse-nyc-taxi-pipeline
+      description: "Pipeline NYC Taxi: ingestion incrementale (Bronze + Silver MERGE) -> Gold -> Data Quality"
+
+      # Execution quotidienne a 06:00 (heure du Maroc).
+      # PAUSED par defaut pour ne pas consommer de compute : passer a UNPAUSED pour activer la planification.
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: "Africa/Casablanca"
+        pause_status: PAUSED
+
+      max_concurrent_runs: 1          # jamais 2 executions en parallele (evite les doublons)
+      timeout_seconds: 3600
+
+      tasks:
+        - task_key: incremental_ingestion
+          description: "Nouveaux fichiers -> Bronze (append + log) -> Silver (MERGE)"
+          notebook_task:
+            notebook_path: "../Phase 07 — Incremental Processing.ipynb"
+          max_retries: 1
+          min_retry_interval_millis: 60000
+
+        - task_key: gold_analytics
+          description: "Recalcul du modele en etoile et des KPIs"
+          depends_on:
+            - task_key: incremental_ingestion
+          notebook_task:
+            notebook_path: "../Phase 05 — Gold Analytics.ipynb"
+
+        - task_key: data_quality
+          description: "Regles DQ + rapport; echoue si une regle critique echoue"
+          depends_on:
+            - task_key: gold_analytics
+          notebook_task:
+            notebook_path: "../Phase 06 — Data Quality.ipynb"
+
+      # Notifications (a activer avec votre adresse) :
+      # email_notifications:
+      #   on_failure:
+      #     - votre.email@exemple.com

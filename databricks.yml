@@ -5,6 +5,15 @@
 bundle:
   name: Lakehouse-Databricks
 
+include:
+  - resources/*.yml
+
+sync:
+  exclude:
+    - data/**
+    - .venv/**
+    - docs/**
+
 targets:
   dev:
     mode: development

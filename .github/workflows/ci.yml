@@ -1,0 +1,60 @@
+# Phase 10 — CI/CD
+# - Pull request / push : lint (ruff) + validation des notebooks + tests (pytest) + validation du bundle
+# - Push sur main      : deploiement du bundle (Job Databricks) sur la cible dev
+#
+# Secrets GitHub requis (Settings > Secrets and variables > Actions) :
+#   DATABRICKS_HOST   ex: https://dbc-xxxx.cloud.databricks.com
+#   DATABRICKS_TOKEN  Personal Access Token Databricks
+
+name: CI-CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+jobs:
+  validate:
+    name: Lint, tests et validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dependances
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Valider les notebooks (format JSON nbformat)
+        run: python -c "import glob, nbformat; [nbformat.validate(nbformat.read(p, as_version=4)) for p in glob.glob('*.ipynb')]; print('notebooks OK')"
+
+      - name: Tests (pytest)
+        run: pytest -v
+
+      - uses: databricks/setup-cli@main
+
+      - name: Valider le bundle Databricks
+        if: env.DATABRICKS_HOST != ''
+        run: databricks bundle validate -t dev
+
+  deploy:
+    name: Deploiement (dev)
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Deployer le bundle
+        run: databricks bundle deploy -t dev

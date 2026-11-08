@@ -1,0 +1,17 @@
+[project]
+name = "lakehouse-databricks"
+version = "1.0.0"
+description = "Lakehouse Medallion (Bronze / Silver / Gold) sur Databricks - NYC Yellow Taxi"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 130
+extend-exclude = ["*.ipynb", ".venv", "data", "__builtins__.pyi"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["spark: tests qui necessitent une connexion Databricks"]
